@@ -182,14 +182,14 @@ class CleverApiRequestor
     //reset the limit
     $limit = 0;
     //how many seconds do we wait
-    $sleep = 1;
+    $sleep = 0;
     //these errors should trigger a retry
     // while((curl_errno($curl) != 0 || $limit == 0)){
-    while((curl_errno($curl) != 0 || $limit == 0) && $limit < 5){
+    while( (curl_errno($curl) != 0) && ($limit < 5) ){
         //make sure we're only trying a limited amount of times
-        $limit += 1;
+        ++$limit;
         //wait for a period of time
-        sleep($sleep++);
+        sleep(++$sleep);
         //get the error code
         $errno = curl_errno($curl);
         //publish an error
