@@ -4,7 +4,9 @@ class CleverApiRequestor
 {
   public $auth;
 
-  public function __construct($auth=null)
+  public static $upperLimit = 5000;
+
+  public function __construct($auth=null, $limit=5)
   {
     $this->_auth = $auth;
   }
@@ -53,14 +55,19 @@ class CleverApiRequestor
     if (!$params)
       $params = array();
 
-      $sleep = 1;
-      while(true){
-        list($rbody, $rcode, $myAuth) = $this->_requestRaw($meth, $url, $params);
-        if(in_array($rcode, array(200, 400, 401))){
-          break;
-        }
-        fwrite(STDOUT, "\n!!! Recieved error {$rcode} @ ".date("r").". Sleeping for {$sleep} second(s) \n");
-        sleep($sleep);
+    list($rbody, $rcode, $myAuth) = $this->_requestRaw($meth, $url, $params);
+
+    //reset the limit, how many seconds do we wait
+    $limit = $i = $sleep = 0;
+    $upperLimit = self::$upperLimit;
+    // while((curl_errno($curl) != 0 || $limit == 0)){
+    while( (!in_array($rcode, array(200, 400, 401))) && ($limit < $upperLimit)){
+        //make sure we're only trying a limited amount of times
+        ++$limit;
+        ++$i;
+        //wait for a period of time
+        sleep(++$sleep);
+        fwrite(STDOUT, "\n!!! Recieved API error {$rcode} @ ".date("r").". Sleeping for {$sleep} second(s) Limit {$i}:{$upperLimit} \n");
       }
 
     $resp = $this->_interpretResponse($rbody, $rcode);
@@ -179,21 +186,20 @@ class CleverApiRequestor
       $rbody = curl_exec($curl);
     }
 
-    //reset the limit
-    $limit = 0;
-    //how many seconds do we wait
-    $sleep = 0;
-    //these errors should trigger a retry
+    //reset the limit, how many seconds do we wait
+    $limit = $i = $sleep = 0;
+    $upperLimit = self::$upperLimit;
     // while((curl_errno($curl) != 0 || $limit == 0)){
-    while( (curl_errno($curl) != 0) && ($limit < 5) ){
+    while( (curl_errno($curl) != 0) && ($limit < $upperLimit) ){
         //make sure we're only trying a limited amount of times
         ++$limit;
+        ++$i;
         //wait for a period of time
         sleep(++$sleep);
         //get the error code
         $errno = curl_errno($curl);
         //publish an error
-        fwrite(STDOUT, "\n!!! Recieved error {$errno} @ ".date("r").". Sleeping for {$sleep} second(s) \n");
+        fwrite(STDOUT, "\n!!! Recieved cURL error {$errno} @ ".date("r").". Sleeping for {$sleep} second(s) Limit {$i}:{$upperLimit} \n");
         //retry the request
         $rbody = curl_exec($curl);
     }
