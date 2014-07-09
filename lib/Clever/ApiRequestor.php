@@ -52,7 +52,17 @@ class CleverApiRequestor
   {
     if (!$params)
       $params = array();
-    list($rbody, $rcode, $myAuth) = $this->_requestRaw($meth, $url, $params);
+
+      $sleep = 1;
+      while(true){
+        list($rbody, $rcode, $myAuth) = $this->_requestRaw($meth, $url, $params);
+        if($rcode == 200){
+          break;
+        }
+        fwrite(STDOUT, "\n!!! Recieved error {$rcode} @ ".date("r").". Sleeping for {$sleep} second(s) \n");
+        sleep($sleep);
+      }
+
     $resp = $this->_interpretResponse($rbody, $rcode);
     return array($resp, $myAuth);
   }
@@ -167,6 +177,24 @@ class CleverApiRequestor
       curl_setopt($curl, CURLOPT_CAINFO,
                   dirname(__FILE__) . '/../data/ca-certificates.crt');
       $rbody = curl_exec($curl);
+    }
+
+    //reset the limit
+    $limit = 0;
+    //how many seconds do we wait
+    $sleep = 1;
+    //these errors should trigger a retry
+    while((curl_errno($curl) != 0 || $limit = 0) && $limit < 5){
+        //make sure we're only trying a limited amount of times
+        $limit += 1;
+        //wait for a period of time
+        sleep($sleep);
+        //get the error code
+        $errno = curl_errno($curl);
+        //publish an error
+        fwrite(STDOUT, "\n!!! Recieved error {$errno} @ ".date("r").". Sleeping for {$sleep} second(s) \n");
+        //retry the request
+        $rbody = curl_exec($curl);
     }
 
     if ($rbody === false) {
