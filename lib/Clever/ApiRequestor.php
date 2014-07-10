@@ -1,14 +1,21 @@
 <?php
 
+use \Psr\Log;
+
 class CleverApiRequestor
 {
   public $auth;
 
-  public static $upperLimit = 5000;
-
-  public function __construct($auth=null, $limit=5)
+  public function __construct($auth=null)
   {
-    $this->_auth = $auth;
+    $this->_auth      = $auth;
+    $this->upperlimit = \Clever::$upperlimit;
+    $this->interval   = \Clever::$interval;
+
+    $this->logger = \Clever::$logger;
+    if(!($this->logger InstanceOf Log\LoggerInterface){
+      $this->logger = new Log\NullLogger;
+    }
   }
 
   public static function apiUrl($url='')
@@ -58,16 +65,22 @@ class CleverApiRequestor
     list($rbody, $rcode, $myAuth) = $this->_requestRaw($meth, $url, $params);
 
     //reset the limit, how many seconds do we wait
-    $limit = $i = $sleep = 0;
-    $upperLimit = self::$upperLimit;
+    $iteration = 0;
+    $sleep     = 1;
     // while((curl_errno($curl) != 0 || $limit == 0)){
-    while( (!in_array($rcode, array(200, 400, 401))) && ($limit < $upperLimit)){
+    while( (!in_array($rcode, array(200, 400, 401))) && ($iteration < $this->upperlimit)){
         //make sure we're only trying a limited amount of times
-        ++$limit;
-        ++$i;
+        ++$iteration
         //wait for a period of time
-        sleep(++$sleep);
-        fwrite(STDOUT, "\n!!! Recieved API error {$rcode} @ ".date("r").". Sleeping for {$sleep} second(s) Limit {$i}:{$upperLimit} \n");
+        sleep(($sleep += $this->interval));
+        $this->logger->alert("Recieved an API error", array(
+          "errno"      => $rcode,
+          "timestamp"  => date("r"),
+          "sleep"      => $sleep,
+          "iteration"  => $iteration,
+          "upperlimit" => $this->upperlimit,
+          "interval"   => $this->interval,
+        ));
       }
 
     $resp = $this->_interpretResponse($rbody, $rcode);
@@ -187,19 +200,25 @@ class CleverApiRequestor
     }
 
     //reset the limit, how many seconds do we wait
-    $limit = $i = $sleep = 0;
-    $upperLimit = self::$upperLimit;
+    $iteration = 0;
+    $sleep     = 1;
     // while((curl_errno($curl) != 0 || $limit == 0)){
-    while( (curl_errno($curl) != 0) && ($limit < $upperLimit) ){
+    while( (curl_errno($curl) != 0) && ($iteration < $this->upperlimit) ){
         //make sure we're only trying a limited amount of times
-        ++$limit;
-        ++$i;
+        ++$iteration
         //wait for a period of time
-        sleep(++$sleep);
+        sleep(($sleep += $this->interval));
         //get the error code
         $errno = curl_errno($curl);
         //publish an error
-        fwrite(STDOUT, "\n!!! Recieved cURL error {$errno} @ ".date("r").". Sleeping for {$sleep} second(s) Limit {$i}:{$upperLimit} \n");
+        $this->logger->alert("Recieved a cURL error", array(
+          "errno"      => $errno,
+          "timestamp"  => date("r"),
+          "sleep"      => $sleep,
+          "iteration"  => $iteration,
+          "upperlimit" => $this->upperlimit,
+          "interval"   => $this->interval,
+        ));
         //retry the request
         $rbody = curl_exec($curl);
     }
