@@ -22,7 +22,7 @@ class CleverObject implements ArrayAccess
       $this->id = $id;
 
     $this->logger = \Clever::$logger;
-    if(!($this->logger InstanceOf Log\LoggerInterface){
+    if(!($this->logger InstanceOf Log\LoggerInterface)){
       $this->logger = new Log\NullLogger;
     }
   }

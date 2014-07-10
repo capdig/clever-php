@@ -13,7 +13,7 @@ class CleverApiRequestor
     $this->interval   = \Clever::$interval;
 
     $this->logger = \Clever::$logger;
-    if(!($this->logger InstanceOf Log\LoggerInterface){
+    if(!($this->logger InstanceOf Log\LoggerInterface)){
       $this->logger = new Log\NullLogger;
     }
   }
@@ -70,7 +70,7 @@ class CleverApiRequestor
     // while((curl_errno($curl) != 0 || $limit == 0)){
     while( (!in_array($rcode, array(200, 400, 401))) && ($iteration < $this->upperlimit)){
         //make sure we're only trying a limited amount of times
-        ++$iteration
+        ++$iteration;
         //wait for a period of time
         sleep(($sleep += $this->interval));
         $this->logger->alert("Recieved an API error", array(
@@ -205,7 +205,7 @@ class CleverApiRequestor
     // while((curl_errno($curl) != 0 || $limit == 0)){
     while( (curl_errno($curl) != 0) && ($iteration < $this->upperlimit) ){
         //make sure we're only trying a limited amount of times
-        ++$iteration
+        ++$iteration;
         //wait for a period of time
         sleep(($sleep += $this->interval));
         //get the error code
